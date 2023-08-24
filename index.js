@@ -66,20 +66,30 @@ let Url = mongoose.model("Url", urlSchema);
 // INIT MONGOOSE MODELS END
 
 app.post("/api/shorturl", function (req, res) {
-  let urlEntity = new Url({
-    original_url: req.body.url,
-  });
-  urlEntity
-    .save()
-    .then(function (createdUrl) {
-      res.json({
-        original_url: createdUrl.original_url,
-        short_url: createdUrl.short_url,
-      });
-    })
-    .catch(function (err) {
-      console.log(err);
+  const dns = require("dns");
+  const options = {
+    all: true,
+  };
+  let formatedUrl = req.body.url.replace(/^https?:\/\//i, "");
+  dns.lookup(formatedUrl, options, (err, addresses) => {
+    if (err) {
+      res.json({ error: "invalid url" });
+    }
+    let urlEntity = new Url({
+      original_url: req.body.url,
     });
+    urlEntity
+      .save()
+      .then(function (createdUrl) {
+        res.json({
+          original_url: createdUrl.original_url,
+          short_url: createdUrl.short_url,
+        });
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+  });
 });
 
 app.get("/api/shorturl/:shorturl", function (req, res) {
