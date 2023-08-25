@@ -18,53 +18,6 @@ app.get("/", function (req, res) {
   res.sendFile(process.cwd() + "/views/index.html");
 });
 
-// INIT MONGOOSE MODELS
-let mongoose = require("mongoose");
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-const counterSchema = new mongoose.Schema(
-  {
-    _id: { type: String, required: true },
-    seq: { type: Number, default: 0 },
-  },
-  {
-    collection: "Counter",
-  }
-);
-let Counter = mongoose.model("Counter", counterSchema);
-const urlSchema = new mongoose.Schema(
-  {
-    original_url: {
-      type: String,
-      required: true,
-    },
-    short_url: {
-      type: Number,
-    },
-  },
-  {
-    collection: "Url",
-  }
-);
-urlSchema.pre("save", function (next) {
-  let doc = this;
-  let query = { seq: { $gt: 0 } };
-  let updateSet = { $inc: { seq: 1 } };
-  let options = { new: true };
-  Counter.findOneAndUpdate(query, updateSet, options)
-    .then(function (updatedCounter) {
-      doc.short_url = updatedCounter.seq;
-      next();
-    })
-    .catch(function (err) {
-      console.log(err);
-    });
-});
-let Url = mongoose.model("Url", urlSchema);
-// INIT MONGOOSE MODELS END
-
 app.post("/api/shorturl", function (req, res) {
   const dns = require("dns");
   const options = {
@@ -75,32 +28,44 @@ app.post("/api/shorturl", function (req, res) {
     if (err) {
       res.json({ error: "invalid url" });
     }
-    let urlEntity = new Url({
-      original_url: req.body.url,
-    });
-    urlEntity
-      .save()
-      .then(function (createdUrl) {
-        res.json({
-          original_url: createdUrl.original_url,
-          short_url: createdUrl.short_url,
-        });
-      })
-      .catch(function (err) {
-        console.log(err);
+    const fs = require("fs");
+    fs.readFile("counter.json", (err, data) => {
+      if (err) {
+        res.json({ error: "invalid url" });
+      }
+      let counter = JSON.parse(data);
+      let urlToSave = {
+        original_url: req.body.url,
+        short_url: counter,
+      };
+      fs.readFile("urls.json", (err, data) => {
+        if (err) {
+          res.json({ error: "invalid url" });
+        }
+        let existingUrls = JSON.parse(data);
+        existingUrls.push(urlToSave);
+        fs.writeFileSync("urls.json", JSON.stringify(existingUrls));
+        fs.writeFileSync("counter.json", JSON.stringify(counter + 1));
+        res.json(urlToSave);
       });
+    });
   });
 });
 
 app.get("/api/shorturl/:shorturl", function (req, res) {
-  let query = { short_url: req.params.shorturl };
-  Url.findOne(query)
-    .then(function (foundUrl) {
-      res.redirect(foundUrl.original_url);
-    })
-    .catch(function (err) {
-      console.log(err);
+  const fs = require("fs");
+  fs.readFile("urls.json", (err, data) => {
+    if (err) {
+      res.json({ error: "invalid url" });
+    }
+    let existingUrls = JSON.parse(data);
+    existingUrls.forEach((oneUrl) => {
+      if (oneUrl.short_url == req.params.shorturl) {
+        res.redirect(oneUrl.original_url);
+      }
     });
+    res.json({ error: "invalid url" });
+  });
 });
 
 app.listen(port, function () {
