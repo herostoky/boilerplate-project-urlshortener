@@ -21,6 +21,7 @@ app.post("/api/shorturl", function (req, res) {
     all: true,
   };
   let formatedUrl = req.body.url.replace(/^https?:\/\//i, "");
+  formatedUrl = formatedUrl.substring(0, formatedUrl.indexOf("/?"));
   let isRead = false;
   let hasError = false;
   dns.lookup(formatedUrl, options, (err, addresses) => {
