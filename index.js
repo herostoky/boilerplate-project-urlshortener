@@ -9,14 +9,8 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 
-app.use("/public", express.static(`${process.cwd()}/public`));
-
 app.use(bodyParser.urlencoded({ extended: "false" }));
 app.use(bodyParser.json());
-
-app.get("/", function (req, res) {
-  res.sendFile(process.cwd() + "/views/index.html");
-});
 
 app.post("/api/shorturl", function (req, res) {
   const dns = require("dns");
@@ -54,17 +48,28 @@ app.post("/api/shorturl", function (req, res) {
 
 app.get("/api/shorturl/:shorturl", function (req, res) {
   const fs = require("fs");
+  let isRead = false;
   fs.readFile("urls.json", (err, data) => {
-    if (err) {
-      res.json({ error: "invalid url" });
-    }
-    let existingUrls = JSON.parse(data);
-    existingUrls.forEach((oneUrl) => {
-      if (oneUrl.short_url == req.params.shorturl) {
-        res.redirect(oneUrl.original_url);
+    let hasFound = false;
+    if (!isRead) {
+      isRead = true;
+      if (err) {
+        res.json({ error: "invalid url" });
+        return;
       }
-    });
-    res.json({ error: "invalid url" });
+      let existingUrls = JSON.parse(data);
+      existingUrls.forEach((oneUrl) => {
+        if (oneUrl.short_url == req.params.shorturl) {
+          hasFound = true;
+          res.redirect(oneUrl.original_url);
+          return;
+        }
+      });
+      if (!hasFound) {
+        res.json({ error: "invalid url" });
+        return;
+      }
+    }
   });
 });
 
