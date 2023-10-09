@@ -12,6 +12,9 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: "false" }));
 app.use(bodyParser.json());
 
+const logger = require("./logger");
+app.use(logger);
+
 app.post("/api/shorturl", function (req, res) {
   const dns = require("dns");
   const options = {
