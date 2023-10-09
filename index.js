@@ -18,31 +18,44 @@ app.post("/api/shorturl", function (req, res) {
     all: true,
   };
   let formatedUrl = req.body.url.replace(/^https?:\/\//i, "");
+  let isRead = false;
+  let hasError = false;
   dns.lookup(formatedUrl, options, (err, addresses) => {
-    if (err) {
-      res.json({ error: "invalid url" });
-    }
-    const fs = require("fs");
-    fs.readFile("counter.json", (err, data) => {
+    if (!isRead) {
       if (err) {
+        hasError = true;
         res.json({ error: "invalid url" });
+        return;
       }
-      let counter = JSON.parse(data);
-      let urlToSave = {
-        original_url: req.body.url,
-        short_url: counter,
-      };
-      fs.readFile("urls.json", (err, data) => {
+      const fs = require("fs");
+      fs.readFile("counter.json", (err, data) => {
         if (err) {
+          hasError = true;
           res.json({ error: "invalid url" });
+          return;
         }
-        let existingUrls = JSON.parse(data);
-        existingUrls.push(urlToSave);
-        fs.writeFileSync("urls.json", JSON.stringify(existingUrls));
-        fs.writeFileSync("counter.json", JSON.stringify(counter + 1));
-        res.json(urlToSave);
+        let counter = JSON.parse(data);
+        let urlToSave = {
+          original_url: req.body.url,
+          short_url: counter,
+        };
+        fs.readFile("urls.json", (err, data) => {
+          if (err) {
+            hasError = true;
+            res.json({ error: "invalid url" });
+            return;
+          }
+          let existingUrls = JSON.parse(data);
+          existingUrls.push(urlToSave);
+          fs.writeFileSync("urls.json", JSON.stringify(existingUrls));
+          fs.writeFileSync("counter.json", JSON.stringify(counter + 1));
+          if (!hasError) {
+            res.json(urlToSave);
+            return;
+          }
+        });
       });
-    });
+    }
   });
 });
 
